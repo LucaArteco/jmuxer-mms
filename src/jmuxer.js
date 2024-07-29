@@ -92,7 +92,7 @@ export default class JMuxer extends Event {
 
     setupMSE() {
         const MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
-        if (MediaSource) {
+        if (!MediaSource) {
             throw 'Oops! Browser does not support Media Source Extension or Managed Media Source (IOS 17+).';
         }
         this.isMSESupported = !!MediaSource;
