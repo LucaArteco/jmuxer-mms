@@ -2376,17 +2376,17 @@
     }, {
       key: "setupMSE",
       value: function setupMSE() {
-        window.MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
+        const MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
 
-        if (!window.MediaSource) {
+        if (!MediaSource) {
           throw 'Oops! Browser does not support Media Source Extension or Managed Media Source (IOS 17+).';
         }
 
-        this.isMSESupported = !!window.MediaSource;
-        this.mediaSource = new window.MediaSource();
+        this.isMSESupported = !!MediaSource;
+        this.mediaSource = new MediaSource();
         this.url = URL.createObjectURL(this.mediaSource);
 
-        if (window.MediaSource === window.ManagedMediaSource) {
+        if (window.ManagedMediaSource) {
           try {
             this.node.removeAttribute('src'); // ManagedMediaSource will not open without disableRemotePlayback set to false or source alternatives
 
@@ -2637,19 +2637,20 @@
           this.endMSE();
         }
 
-        this.node = false;
-        this.mseReady = false;
-        this.videoStarted = false;
-        this.mediaSource = null;
-
-        if (window.MediaSource === window.ManagedMediaSource) {
+        if (window.ManagedMediaSource) {
           this.node.removeAttribute('src');
           this.node.innerHTML = '';
           URL.revokeObjectURL(this.url);
           this.node.removeAttribute('src');
           this.node.disableRemotePlayback = false;
-          this.node.load();
+          this.node.load();        
         }
+        
+        this.node = false;
+        this.mseReady = false;
+        this.videoStarted = false;
+        this.mediaSource = null;
+
       }
     }, {
       key: "reset",
@@ -2843,7 +2844,7 @@
     }], [{
       key: "isSupported",
       value: function isSupported(codec) {
-        return window.MediaSource && window.MediaSource.isTypeSupported(codec);
+        return (window.MediaSource || window.ManagedMediaSource) && (window.MediaSource?.isTypeSupported(codec) || window.ManagedMediaSource?.isTypeSupported(codec));
       }
     }]);
 
