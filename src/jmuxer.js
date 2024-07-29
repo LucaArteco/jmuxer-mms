@@ -294,6 +294,17 @@ export default class JMuxer extends Event {
         this.mseReady = false;
         this.videoStarted = false;
         this.mediaSource = null;
+
+        if(window.MediaSource === window.ManagedMediaSource) {
+            this.node.removeAttribute('src');
+            this.node.innerHTML = '';
+            URL.revokeObjectURL(this.url);
+            this.node.removeAttribute('src');                
+            this.node.disableRemotePlayback = false;         
+            this.node.load();   
+            //remove mapping - AST-5575 - 2nd load hls wasn't working
+            window.MediaSource = undefined;
+        }
     }
 
     reset() {
