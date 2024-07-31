@@ -2295,7 +2295,11 @@
         debug: false,
         onReady: function onReady() {},
         // function called when MSE is ready to accept frames
-        onError: function onError() {} // function called when jmuxer encounters any buffer related error
+        onError: function onError() {},
+        // function called when jmuxer encounters any buffer related errors
+        onMissingVideoFrames: function onMissingVideoFrames() {},
+        // function called when jmuxer encounters any missing video frames
+        onMissingAudioFrames: function onMissingAudioFrames() {} // function called when jmuxer encounters any missing audio frames
 
       };
       _this.options = Object.assign({}, defaults, options);
@@ -2372,16 +2376,33 @@
     }, {
       key: "setupMSE",
       value: function setupMSE() {
-        window.MediaSource = window.MediaSource || window.WebKitMediaSource;
+        const MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
 
-        if (!window.MediaSource) {
-          throw 'Oops! Browser does not support media source extension.';
+        if (!MediaSource) {
+          throw 'Oops! Browser does not support Media Source Extension or Managed Media Source (IOS 17+).';
         }
 
-        this.isMSESupported = !!window.MediaSource;
+        this.isMSESupported = !!MediaSource;
         this.mediaSource = new MediaSource();
         this.url = URL.createObjectURL(this.mediaSource);
-        this.node.src = this.url;
+
+        if (window.ManagedMediaSource) {
+          try {
+            this.node.removeAttribute('src'); // ManagedMediaSource will not open without disableRemotePlayback set to false or source alternatives
+
+            this.node.disableRemotePlayback = true;
+            var source = document.createElement('source');
+            source.type = 'video/mp4';
+            source.src = this.url;
+            this.node.appendChild(source);
+            this.node.load();
+          } catch (error) {
+            this.node.src = this.url;
+          }
+        } else {
+          this.node.src = this.url;
+        }
+
         this.mseEnded = false;
         this.mediaSource.addEventListener('sourceopen', this.onMSEOpen.bind(this));
         this.mediaSource.addEventListener('sourceclose', this.onMSEClose.bind(this));
@@ -2430,6 +2451,11 @@
             remux = true;
           } else {
             error('Failed to extract any NAL units from video data:', left);
+
+            if (typeof this.options.onMissingVideoFrames === 'function') {
+              this.options.onMissingVideoFrames.call(null, data);
+            }
+
             return;
           }
         }
@@ -2442,6 +2468,11 @@
             remux = true;
           } else {
             error('Failed to extract audio data from:', data.audio);
+
+            if (typeof this.options.onMissingAudioFrames === 'function') {
+              this.options.onMissingAudioFrames.call(null, data);
+            }
+
             return;
           }
         }
@@ -2606,10 +2637,20 @@
           this.endMSE();
         }
 
+        if (window.ManagedMediaSource) {
+          this.node.removeAttribute('src');
+          this.node.innerHTML = '';
+          URL.revokeObjectURL(this.url);
+          this.node.removeAttribute('src');
+          this.node.disableRemotePlayback = false;
+          this.node.load();        
+        }
+        
         this.node = false;
         this.mseReady = false;
         this.videoStarted = false;
         this.mediaSource = null;
+
       }
     }, {
       key: "reset",
@@ -2803,7 +2844,7 @@
     }], [{
       key: "isSupported",
       value: function isSupported(codec) {
-        return window.MediaSource && window.MediaSource.isTypeSupported(codec);
+        return (window.MediaSource || window.ManagedMediaSource) && (window.MediaSource?.isTypeSupported(codec) || window.ManagedMediaSource?.isTypeSupported(codec));
       }
     }]);
 

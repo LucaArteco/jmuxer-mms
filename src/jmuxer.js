@@ -9,8 +9,8 @@ import BufferController from './controller/buffer.js';
 import { Duplex } from 'stream';
 
 export default class JMuxer extends Event {
-    static isSupported(codec) {
-        return (window.MediaSource && window.MediaSource.isTypeSupported(codec));
+    static isSupported(codec) {        
+        return (window.MediaSource || window.ManagedMediaSource) && (window.MediaSource?.isTypeSupported(codec) || window.ManagedMediaSource?.isTypeSupported(codec));
     }
 
     constructor(options) {
@@ -91,14 +91,14 @@ export default class JMuxer extends Event {
     }
 
     setupMSE() {
-        window.MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
-        if (!window.MediaSource) {
+        const MediaSource = window.ManagedMediaSource || window.MediaSource || window.WebKitMediaSource;
+        if (!MediaSource) {
             throw 'Oops! Browser does not support Media Source Extension or Managed Media Source (IOS 17+).';
         }
-        this.isMSESupported = !!window.MediaSource;
-        this.mediaSource = new window.MediaSource();
+        this.isMSESupported = !!MediaSource;
+        this.mediaSource = new MediaSource();
         this.url = URL.createObjectURL(this.mediaSource);
-        if(window.MediaSource === window.ManagedMediaSource) {
+        if(window.ManagedMediaSource) {
             try {
                 this.node.removeAttribute('src');
                 // ManagedMediaSource will not open without disableRemotePlayback set to false or source alternatives
@@ -290,10 +290,20 @@ export default class JMuxer extends Event {
             this.bufferControllers = null;
             this.endMSE();
         }
+        if(window.ManagedMediaSource) {
+            this.node.removeAttribute('src');
+            this.node.innerHTML = '';
+            URL.revokeObjectURL(this.url);
+            this.node.removeAttribute('src');                
+            this.node.disableRemotePlayback = false;         
+            this.node.load();   
+        }
+
         this.node = false;
         this.mseReady = false;
         this.videoStarted = false;
         this.mediaSource = null;
+
     }
 
     reset() {
